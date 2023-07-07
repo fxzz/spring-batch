@@ -1,0 +1,19 @@
+spring:
+  batch:
+    job:
+      names: ${job.name:NONE}
+    jdbc:
+      initialize-schema: always
+
+
+# names: ${job.name:NONE}  Program arguments: --job.name=???
+# Active profiles: mysql
+---
+
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/spring_batch?serverTimezone=Asia/Seoul
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: asdf
+    password: 1234
+
