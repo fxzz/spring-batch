@@ -8,6 +8,8 @@ import org.springframework.batch.core.configuration.annotation.JobBuilderFactory
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
 import org.springframework.batch.item.ItemWriter;
+import org.springframework.batch.item.database.JdbcCursorItemReader;
+import org.springframework.batch.item.database.builder.JdbcCursorItemReaderBuilder;
 import org.springframework.batch.item.file.FlatFileItemReader;
 import org.springframework.batch.item.file.builder.FlatFileItemReaderBuilder;
 import org.springframework.batch.item.file.mapping.DefaultLineMapper;
@@ -29,6 +31,7 @@ public class ItemReaderConfiguration {
 
     private final JobBuilderFactory jobBuilderFactory;
     private final StepBuilderFactory stepBuilderFactory;
+    private final DataSource dataSource;
 
 
 
@@ -39,6 +42,7 @@ public class ItemReaderConfiguration {
                 .incrementer(new RunIdIncrementer())
                 .start(this.customItemReaderStep())
                 .next(csvFileStep())
+                .next(jdbcStep())
                 .build();
     }
 
@@ -51,6 +55,7 @@ public class ItemReaderConfiguration {
                 .build();
     }
 
+
     @Bean
     public Step csvFileStep() throws Exception {
         return stepBuilderFactory.get("csvFileStep")
@@ -58,6 +63,29 @@ public class ItemReaderConfiguration {
                 .reader(csvFileItemReader())
                 .writer(itemWriter())
                 .build();
+    }
+
+    @Bean
+    public Step jdbcStep() throws Exception {
+        return stepBuilderFactory.get("jdbcStep")
+                .<Person, Person>chunk(10)
+                .reader(jdbcCursorItemReader())
+                .writer(itemWriter())
+                .build();
+    }
+
+    private JdbcCursorItemReader<Person> jdbcCursorItemReader() throws Exception {
+        JdbcCursorItemReader<Person> itemReader = new JdbcCursorItemReaderBuilder<Person>()
+                .name("jdbcCursorItemReader")
+                .dataSource(dataSource)
+                .sql("select id, name, age, address from person")
+                //rowMapper로 Person객체 매핑
+                .rowMapper((rs, rowNum) -> new Person(
+                        rs.getInt(1), rs.getString(2), rs.getString(3), rs.getString(4)))
+        //rs.getInt(1) id로 매핑, rs.getString(2) name 매핑, rs.getString(3) age 매핑, rs.getString(4) address 매핑
+                .build();
+        itemReader.afterPropertiesSet();
+        return itemReader;
     }
 
 
