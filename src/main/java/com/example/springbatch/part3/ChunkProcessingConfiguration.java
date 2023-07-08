@@ -8,6 +8,7 @@ import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.JobScope;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
+import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
 import org.springframework.batch.core.step.tasklet.Tasklet;
 import org.springframework.batch.item.ItemProcessor;
@@ -40,6 +41,7 @@ public class ChunkProcessingConfiguration {
 
     @Bean
     @JobScope
+    //@JobScope @StepScope 스코프 설정 이유 : 라이프사이클 관리랑 , 스코프가 설정되어 있어야 @Value() 사용 가능
     //@Value("#{jobParameters[chunkSize]}") 했으면 Program arguments:-chunkSize=20 --spring.batch.job.name=helloJob 추가
     public Step chunkBaseStep(@Value("#{jobParameters[chunkSize]}") String chunkSize) {
         return stepBuilderFactory.get("chunkBaseStep")
@@ -49,6 +51,7 @@ public class ChunkProcessingConfiguration {
                 .writer(itemWriter())
                 .build();
     }
+
 
     private ItemWriter<String> itemWriter() {
         return items -> log.info("chunk item size : {}", items.size());
