@@ -2,14 +2,10 @@ spring:
   batch:
     job:
       names: ${job.name:NONE}
-    jdbc:
-      initialize-schema: always
+    initialize-schema:
   datasource:
     driver-class-name: org.h2.Driver
-  sql:
-    init:
-      data-locations: classpath:person.sql
+    data: classpath:person.sql
 
 # names: ${job.name:NONE}  Program arguments: --job.name=???
 
----
