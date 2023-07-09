@@ -12,6 +12,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
+    show-sql: true
 
 # names: ${job.name:NONE}  Program arguments: --job.name=???
 # Active profiles: mysql
