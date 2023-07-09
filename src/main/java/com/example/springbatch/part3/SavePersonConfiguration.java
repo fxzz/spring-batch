@@ -26,6 +26,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.data.crossstore.ChangeSetPersister;
 
 import javax.persistence.EntityManagerFactory;
 
@@ -56,11 +57,37 @@ public class SavePersonConfiguration {
         return this.stepBuilderFactory.get("savePersonStep")
                 .<Person, Person>chunk(10)
                 .reader(itemReader())
-                .processor(new DuplicateValidationProcessor<>(Person::getName, Boolean.parseBoolean(allowDuplicate)))
+                .processor(itemProcessor(allowDuplicate))
                 .writer(itemWriter())
+                .listener(new SavePersonListener.SavePersonStepExecutionListener())
+                //faultTolerant 이 메서드를 설정하면 스킵과 같은 예외처리를 사용할수 있다
+                //NotFoundNameException 이 발생하면 3번까지 허용하고 그 다음부터 실패
+                .faultTolerant()
+                .skip(NotFoundNameException.class)
+                .skipLimit(3)
                 .build();
     }
 
+    private ItemProcessor<? super Person, ? extends Person> itemProcessor(String allowDuplicate) throws Exception {
+        DuplicateValidationProcessor<Person> duplicateValidationProcessor =
+                new DuplicateValidationProcessor<>(Person::getName, Boolean.parseBoolean(allowDuplicate));
+
+        ItemProcessor<Person, Person> validationProcessor = item -> {
+            if (item.isNotEmptyName()) {
+                return item;
+            }
+
+            throw new NotFoundNameException();
+        };
+
+        CompositeItemProcessor<Person, Person> itemProcessor = new CompositeItemProcessorBuilder<Person, Person>()
+                .delegates(validationProcessor, duplicateValidationProcessor)
+                .build();
+
+        itemProcessor.afterPropertiesSet();
+
+        return itemProcessor;
+    }
 
 
     private ItemWriter<? super Person> itemWriter() throws Exception {
