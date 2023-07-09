@@ -60,11 +60,14 @@ public class SavePersonConfiguration {
                 .processor(itemProcessor(allowDuplicate))
                 .writer(itemWriter())
                 .listener(new SavePersonListener.SavePersonStepExecutionListener())
-                //faultTolerant 이 메서드를 설정하면 스킵과 같은 예외처리를 사용할수 있다
+                //faultTolerant 이 메서드를 설정하면 스킵과 리트라이 예외처리를 사용할수 있다
                 //NotFoundNameException 이 발생하면 3번까지 허용하고 그 다음부터 실패
                 .faultTolerant()
                 .skip(NotFoundNameException.class)
                 .skipLimit(3)
+                //NotFoundNameException 이 발생하면 3번까지 재시도
+                .retry(NotFoundNameException.class)
+                .retryLimit(3)
                 .build();
     }
 
@@ -81,7 +84,7 @@ public class SavePersonConfiguration {
         };
 
         CompositeItemProcessor<Person, Person> itemProcessor = new CompositeItemProcessorBuilder<Person, Person>()
-                .delegates(validationProcessor, duplicateValidationProcessor)
+                .delegates(new PersonValidationRetryProcessor(), validationProcessor, duplicateValidationProcessor)
                 .build();
 
         itemProcessor.afterPropertiesSet();
