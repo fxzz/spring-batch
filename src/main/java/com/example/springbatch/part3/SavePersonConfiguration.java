@@ -44,6 +44,8 @@ public class SavePersonConfiguration {
         return this.jobBuilderFactory.get("savePersonJob")
                 .incrementer(new RunIdIncrementer())
                 .start(this.savePersonStep(null))
+                .listener(new SavePersonListener.SavePersonJobExecutionListener())
+                .listener(new SavePersonListener.SavePersonAnnotationJobExecutionListener())
                 .build();
     }
 
