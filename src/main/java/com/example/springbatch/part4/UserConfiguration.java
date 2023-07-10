@@ -50,8 +50,11 @@ public class UserConfiguration {
     private final EntityManagerFactory entityManagerFactory;
     private final DataSource dataSource;
     private final TaskExecutor taskExecutor;
+// -path=/users/PC/git/spring-batch/output/ -date=2020-11 --job.name=userJob
 
-
+// spring-batch> ./gradlew clean jar build -x test 로 jar 생성
+// cd build/libs 에 spring-batch-0.0.1-SNAPSHOT.jar 생성
+// java -jar spring-batch-0.0.1-SNAPSHOT.jar --job.name=userJob -date=2020-11 -path=/users/PC/git/spring-batch/output/
 
 
     @Bean(JOB_NAME)
@@ -66,7 +69,7 @@ public class UserConfiguration {
                 //date 를 넣어서 검증후 리턴값이 CONTINUE 인지 확인
                 .on(JobParametersDecide.CONTINUE.getName())
                 //위에 검증(CONTINUE)면 아래 to 를 실행
-                .to(orderStatisticsStep(null))
+                .to(orderStatisticsStep(null, null))
                 .build()
                 .build();
     }
@@ -75,16 +78,17 @@ public class UserConfiguration {
     // -date=2020-11 --job.name=userJob
     @Bean(JOB_NAME + "_orderStatisticsStep")
     @JobScope
-    public Step orderStatisticsStep(@Value("#{jobParameters[date]}") String date) throws Exception {
+    public Step orderStatisticsStep(@Value("#{jobParameters[date]}") String date,
+                                    @Value("#{jobParameters[path]}") String path) throws Exception {
         return this.stepBuilderFactory.get(JOB_NAME + "_orderStatisticsStep")
                 .<OrderStatistics, OrderStatistics>chunk(CHUNK)
                 .reader(orderStatisticsItemReader(date))
-                .writer(orderStatisticsItemWriter(date))
+                .writer(orderStatisticsItemWriter(date, path))
                 .build();
     }
 
     // CSV 파일 생성
-    private ItemWriter<? super OrderStatistics> orderStatisticsItemWriter(String date) throws Exception {
+    private ItemWriter<? super OrderStatistics> orderStatisticsItemWriter(String date, String path) throws Exception {
         YearMonth yearMonth = YearMonth.parse(date);
         String fileName = yearMonth.getYear() + "년_" + yearMonth.getMonthValue() + "월_일별_주문_금액.csv";
 
@@ -98,7 +102,8 @@ public class UserConfiguration {
         lineAggregator.setFieldExtractor(fieldExtractor);
 
         FlatFileItemWriter<OrderStatistics> itemWriter = new FlatFileItemWriterBuilder<OrderStatistics>()
-                .resource(new FileSystemResource("output/" + fileName))
+                                        //path는 파일 저장 위치 +  fileName 으로 파일 저장
+                .resource(new FileSystemResource(path + fileName))
                 .lineAggregator(lineAggregator)
                 .name(JOB_NAME + "_orderStatisticsItemWriter")
                 .encoding("UTF-8")
