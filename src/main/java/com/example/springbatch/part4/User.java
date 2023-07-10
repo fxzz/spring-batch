@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 
 import javax.persistence.*;
 import java.time.LocalDate;
+import java.util.Objects;
 
 @Getter
 @Entity
@@ -31,6 +32,20 @@ public class User {
         this.totalAmount = totalAmount;
     }
 
+    public boolean availableLeveUp() {
+        return Level.availableLevelUp(this.getLevel(), this.getTotalAmount());
+    }
+
+    public Level levelUp() {
+        Level nextLevel = Level.getNextLevel(this.getTotalAmount());
+
+        this.level = nextLevel;
+        this.updateDate = LocalDate.now();
+
+        return nextLevel;
+    }
+
+
     public enum Level {
         VIP(500_000, null),
         GOLD(500_000, VIP),
@@ -44,5 +59,41 @@ public class User {
             this.nextAmount = nextAmount;
             this.nextLevel = nextLevel;
         }
+
+        private static boolean availableLevelUp(Level level, int totalAmount) {
+            if (Objects.isNull(level)) {
+                return false;
+            }
+
+            if (Objects.isNull(level.nextLevel)) {
+                return false;
+            }
+
+            return totalAmount >= level.nextAmount;
+        }
+
+
+        private static Level getNextLevel(int totalAmount) {
+            if (totalAmount >= Level.VIP.nextAmount) {
+                return VIP;
+            }
+
+            if (totalAmount >= Level.GOLD.nextAmount) {
+                return GOLD.nextLevel;
+            }
+
+            if (totalAmount >= Level.SILVER.nextAmount) {
+                return SILVER.nextLevel;
+            }
+
+            if (totalAmount >= Level.NORMAL.nextAmount) {
+                return NORMAL.nextLevel;
+            }
+
+            return NORMAL;
+        }
     }
+
+
+
 }
