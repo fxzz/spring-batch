@@ -1,11 +1,13 @@
 package com.example.springbatch.part4;
 
+import com.example.springbatch.part5.Orders;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import javax.persistence.*;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Objects;
 
 @Getter
@@ -22,18 +24,26 @@ public class User {
     @Enumerated(EnumType.STRING)
     private Level level = Level.NORMAL;
 
-    private int totalAmount;
+    @OneToMany(cascade = CascadeType.PERSIST, fetch = FetchType.EAGER)
+    @JoinColumn(name = "user_id")
+    private List<Orders> orders;
 
     private LocalDate updatedDate;
 
     @Builder
-    public User(String username, int totalAmount) {
+    private User(String username, List<Orders> orders) {
         this.username = username;
-        this.totalAmount = totalAmount;
+        this.orders = orders;
     }
 
     public boolean availableLeveUp() {
         return Level.availableLevelUp(this.getLevel(), this.getTotalAmount());
+    }
+
+    private int getTotalAmount() {
+        return this.orders.stream()
+                .mapToInt(Orders::getAmount)
+                .sum();
     }
 
     public Level levelUp() {
@@ -44,7 +54,6 @@ public class User {
 
         return nextLevel;
     }
-
 
     public enum Level {
         VIP(500_000, null),
@@ -72,7 +81,6 @@ public class User {
             return totalAmount >= level.nextAmount;
         }
 
-
         private static Level getNextLevel(int totalAmount) {
             if (totalAmount >= Level.VIP.nextAmount) {
                 return VIP;
@@ -93,7 +101,4 @@ public class User {
             return NORMAL;
         }
     }
-
-
-
 }
