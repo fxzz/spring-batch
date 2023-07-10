@@ -26,6 +26,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.task.TaskExecutor;
 
 import javax.persistence.EntityManagerFactory;
 import javax.sql.DataSource;
@@ -41,17 +42,19 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class UserConfiguration {
 
-    private final int CHUNK = 100;
+    private final String JOB_NAME = "userJob";
+    private final int CHUNK = 1000;
     private final JobBuilderFactory jobBuilderFactory;
     private final StepBuilderFactory stepBuilderFactory;
     private final UserRepository userRepository;
     private final EntityManagerFactory entityManagerFactory;
     private final DataSource dataSource;
+    private final TaskExecutor taskExecutor;
 
 
 
 
-    @Bean
+    @Bean(JOB_NAME)
     public Job userJob() throws Exception {
         return jobBuilderFactory.get("userJob")
                 .incrementer(new RunIdIncrementer())
@@ -70,10 +73,10 @@ public class UserConfiguration {
 
 
     // -date=2020-11 --job.name=userJob
-    @Bean
+    @Bean(JOB_NAME + "_orderStatisticsStep")
     @JobScope
     public Step orderStatisticsStep(@Value("#{jobParameters[date]}") String date) throws Exception {
-        return this.stepBuilderFactory.get("orderStatisticsStep")
+        return this.stepBuilderFactory.get(JOB_NAME + "_orderStatisticsStep")
                 .<OrderStatistics, OrderStatistics>chunk(CHUNK)
                 .reader(orderStatisticsItemReader(date))
                 .writer(orderStatisticsItemWriter(date))
@@ -97,7 +100,7 @@ public class UserConfiguration {
         FlatFileItemWriter<OrderStatistics> itemWriter = new FlatFileItemWriterBuilder<OrderStatistics>()
                 .resource(new FileSystemResource("output/" + fileName))
                 .lineAggregator(lineAggregator)
-                .name("orderStatisticsItemWriter")
+                .name(JOB_NAME + "_orderStatisticsItemWriter")
                 .encoding("UTF-8")
                 .headerCallback(writer -> writer.write("total_amoun,date"))
                 .build();
@@ -130,7 +133,7 @@ public class UserConfiguration {
                         .date(LocalDate.parse(resultSet.getString(2), DateTimeFormatter.ISO_DATE))
                         .build())
                 .pageSize(CHUNK)
-                .name("orderStatisticsItemReader")
+                .name(JOB_NAME + "_orderStatisticsItemReader")
                 .selectClause("sum(amount), created_date")
                 .fromClause("orders")
                 .whereClause("created_date >= :startDate and created_date <= :endDate")
@@ -142,20 +145,24 @@ public class UserConfiguration {
         return itemReader;
     }
 
-    @Bean
+    @Bean(JOB_NAME + "_saveUserStep")
     public Step saveUserStep() {
-        return stepBuilderFactory.get("saveUserStep")
+        return stepBuilderFactory.get(JOB_NAME + "_saveUserStep")
                 .tasklet(new SaveUserTasklet(userRepository))
                 .build();
     }
 
-    @Bean
+    @Bean(JOB_NAME + "_userLevelUpStep")
     public Step userLevelUpStep() throws Exception {
-        return stepBuilderFactory.get("userLevelUpStep")
+        return stepBuilderFactory.get(JOB_NAME + "_userLevelUpStep")
                 .<User, User>chunk(CHUNK)
                 .reader(itemReader())
                 .processor(itemProcessor())
                 .writer(itemWriter())
+                //taskExecutor 를 주입해 멀티 스레드 스텝 작동
+                .taskExecutor(taskExecutor)
+                //8개의 스레드로 정크를 처리  (기본값은 4)
+                .throttleLimit(8)
                 .build();
     }
 
@@ -184,7 +191,7 @@ public class UserConfiguration {
                 .entityManagerFactory(entityManagerFactory)
                 //페이지 사이즈는 정크 사이즈랑 보통 동일 하게 함
                 .pageSize(CHUNK)
-                .name("userItemReader")
+                .name(JOB_NAME + "_userItemReader")
                 .build();
 
       itemReader.afterPropertiesSet();

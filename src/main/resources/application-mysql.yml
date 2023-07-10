@@ -11,8 +11,8 @@ spring:
     password: 1234
   jpa:
     hibernate:
-      ddl-auto: update
-    show-sql: true
+      ddl-auto: create
+    show-sql: false
 
 # names: ${job.name:NONE}  Program arguments: --job.name=???
 # Active profiles: mysql
