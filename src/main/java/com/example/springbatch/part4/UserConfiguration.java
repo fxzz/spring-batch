@@ -1,5 +1,6 @@
 package com.example.springbatch.part4;
 
+import com.example.springbatch.part5.JobParametersDecide;
 import com.example.springbatch.part5.OrderStatistics;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -56,8 +57,14 @@ public class UserConfiguration {
                 .incrementer(new RunIdIncrementer())
                 .start(saveUserStep())
                 .next(userLevelUpStep())
-                .next(orderStatisticsStep(null))
                 .listener(new LevelUpJobExecutionListener(userRepository))
+                // -date=2020-11 --job.name=userJob 의 date 파라메타 값이 있는지 검사
+                .next(new JobParametersDecide("date"))
+                //date 를 넣어서 검증후 리턴값이 CONTINUE 인지 확인
+                .on(JobParametersDecide.CONTINUE.getName())
+                //위에 검증(CONTINUE)면 아래 to 를 실행
+                .to(orderStatisticsStep(null))
+                .build()
                 .build();
     }
 
