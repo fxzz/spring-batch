@@ -31,12 +31,14 @@ public class UserConfiguration {
 
 
 
+
     @Bean
     public Job userJob() throws Exception {
         return jobBuilderFactory.get("userJob")
                 .incrementer(new RunIdIncrementer())
                 .start(saveUserStep())
                 .next(userLevelUpStep())
+                .listener(new LevelUpJobExecutionListener(userRepository))
                 .build();
     }
 

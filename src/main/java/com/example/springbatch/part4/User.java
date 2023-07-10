@@ -24,7 +24,7 @@ public class User {
 
     private int totalAmount;
 
-    private LocalDate updateDate;
+    private LocalDate updatedDate;
 
     @Builder
     public User(String username, int totalAmount) {
@@ -40,7 +40,7 @@ public class User {
         Level nextLevel = Level.getNextLevel(this.getTotalAmount());
 
         this.level = nextLevel;
-        this.updateDate = LocalDate.now();
+        this.updatedDate = LocalDate.now();
 
         return nextLevel;
     }
